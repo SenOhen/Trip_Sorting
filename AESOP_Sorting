@@ -1,0 +1,133 @@
+import random
+import string
+import csv
+
+# TripsByLevel: Trips sorted by level of difficulty
+TripByLevel = {1: [], 2: [], 3: [], 4: [], 5: []}
+Trips = {}
+
+# read trip names/levels
+with open('Aesop_groups.csv') as f:
+    reader = csv.reader(f)
+    tripnames = list(reader)
+# puts trips into TripsByLevel appropriately
+for trip in tripnames:
+    level = int(trip[1])
+    TripByLevel[level].append(trip[0])
+
+#Dictionary Trips TO BE FILLED WITH FIRST YEARS, in the form
+# {"name of trip" : [array of people in trip]}
+for n in tripnames:
+    name = n[0]
+    Trips[name] = []
+
+# START OF PROGRAM #
+
+#Matches a person with a trip IF the person's top five choices are filled
+#Preconditions: Person, the key of FirstYears, must be defined, and the persons' top five choices must be filled
+#Postconditions: Starting with the highest level, select a random unfilled trip, as long as it is not on the persons "blacklist", and adds the person to the trip. If all the trips of that level are filled, it goes down a level and checks those trips, and so on.
+
+def matchLevel(person):
+    i = int(FirstYears[person][2])
+    while i > 0:
+        UnfilledTrips = [] # All the unfilled trips in that level
+        for item in TripByLevel[i]:
+            if len(Trips[item]) < 10 and Trips[item] != FirstYears[person][1]:
+                UnfilledTrips.append(item)
+        if len(UnfilledTrips) > 0:# If there are some unfilled trips in that level:
+            RandomTrip = UnfilledTrips[randint(0, len(UnfilledTrips)-1)]
+            Trips[RandomTrip].append(person)
+            FirstYears[person][3] = 1
+            FirstYears[person][5] = RandomTrip
+            i = 0 # So that we exit the loop
+        else:# If all the trips in that level are full:
+            i = i - 1 # Goes down to the next level of trips
+
+#Matches a person with a trip
+#Preconditions: Need person, the key of FirstYears, to be defined
+#Postconditions: Assigns person to a trip
+def matchTrip(person):
+    # firstChoice is the first preferred trip of list
+    firstChoice = FirstYears[person][0][0]
+
+    #If the student’s first choice isn’t full (i.e. size of array is less than 10), then assign her to the trip
+    if len(Trips[firstChoice]) < 10:
+        Trips[firstChoice].append(person)
+        FirstYears[person][3] = 1
+        FirstYears[person][5] = firstChoice
+
+    #If her top five trips are full, then we check her highest levelled trip preferrence and sort her using that
+    elif len(FirstYears[person][0]) == 1:
+        matchLevel(person)
+        FirstYears[person][3] = 1
+        FirstYears[person][5] = firstChoice
+
+    #Otherwise, delete her first choice, then check if her current “first” trip is full
+    else:
+        del(FirstYears[person][0][0])
+        matchTrip(person)
+
+FirstYears = {}
+
+# read in the first years
+with open('Aesop_population.csv') as f:
+    #reader = [x.decode('utf8').strip() for x in f.readlines()]
+    reader = csv.reader(f)
+    temp = list(reader)
+
+# FirstYears = {"Name of Student": [Trips wanted], Trip not wanted, int(Max level comfortable), int(0 unmatched/1 matched), int(preferences), trip paried with}
+i = 1
+while i < len(temp):
+    person = temp[i]
+    name = person[0] + "," + person[1]
+    want = person[2:7]
+    not_want = person[7]
+    level = person[8]
+    matched = 0
+    satisfaction = 0
+    trip = ""
+    FirstYears[name] = [want, not_want, level, matched, satisfaction, trip]
+    i = i + 1
+
+# put first years in trips
+for person in FirstYears:
+    matchTrip(person)
+
+# record the preference of the trip that was assigned to the first year
+for n in FirstYears:
+    if len(FirstYears[n][0]) > 0:
+        FirstYears[n][4] = 6 - len(FirstYears[n][0])
+    else:
+        FirstYears[n][4] = 9 #first year did not get any of top 5
+
+# organizes information so that it can be read to an excel sheet easily
+printableTrips = []
+for trip in Trips:
+    temp = [trip]
+    for person in Trips[trip]:
+        temp.append(person)
+    printableTrips.append(temp)
+
+# output trips and their group members to an excel file
+Trip0 = [["trip", "Person 1", "Person 2", "Person 3", "Person 4", "Person 5", "Person 6", "Person 7", "Person 8", "Person 9", "Person 10"]]
+with open("Groups.csv", "wb") as resultFile:
+    wr = csv.writer(resultFile, dialect='excel')
+    wr.writerows(Trip0)
+    wr.writerows(printableTrips)
+
+# organizes information so that it can be read to an excel sheet easily
+FirstYears0 = [["Name", "Trip", "Preference"]]
+printableFirstYears = []
+for person in FirstYears:
+    temp = [person]
+    temp.append(FirstYears[person][5])
+    temp.append(FirstYears[person][4])
+    printableFirstYears.append(temp)
+
+# output first years and their trip and the preference of that trip to an excel file
+with open("FirstYears.csv", "wb") as resultFile:
+    wr = csv.writer(resultFile, dialect='excel')
+    wr.writerows(FirstYears0)
+    wr.writerows(printableFirstYears)
+
+print("done")
